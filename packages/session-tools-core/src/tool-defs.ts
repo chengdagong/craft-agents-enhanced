@@ -40,6 +40,7 @@ import { handleGetSessionInfo } from './handlers/get-session-info.ts';
 import { handleListSessions } from './handlers/list-sessions.ts';
 import { handleSendAgentMessage } from './handlers/send-agent-message.ts';
 import { handleListMessagingChannels, handleUnbindMessagingChannel } from './handlers/messaging.ts';
+import { handleSharedTerminal } from './handlers/shared-terminal.ts';
 
 // ============================================================
 // Canonical Zod Schemas
@@ -219,6 +220,17 @@ export const ListMessagingChannelsSchema = z.object({
 
 export const UnbindMessagingChannelSchema = z.object({
   platform: z.enum(['telegram', 'whatsapp']).optional().describe('Platform to unbind. If omitted, unbinds all.'),
+});
+
+export const SharedTerminalSchema = z.object({
+  command: z.enum(['ensure', 'write', 'read', 'interrupt', 'kill'])
+    .describe('Terminal operation: ensure starts/reuses the PTY, write sends raw input, read returns buffered output, interrupt sends Ctrl-C, kill terminates the PTY.'),
+  text: z.string().optional().describe('Raw text/control bytes to write. Include "\\n" to press Enter. Use interrupt instead of writing Ctrl-C manually.'),
+  fromSeq: z.number().optional().describe('Return output chunks with seq >= this value. Use the previous nextSeq for incremental reads.'),
+  waitMs: z.number().min(0).max(10000).optional().describe('Optional delay before reading output, useful after write/interrupt/read. Max 10000ms.'),
+  cwd: z.string().optional().describe('Working directory to use when the shared terminal is first created. Defaults to the session working directory.'),
+  cols: z.number().min(20).max(400).optional().describe('Initial terminal columns when creating the PTY.'),
+  rows: z.number().min(5).max(200).optional().describe('Initial terminal rows when creating the PTY.'),
 });
 
 // ============================================================
@@ -483,6 +495,20 @@ Shows which external chat apps are connected and can send/receive messages.`,
 
   unbind_messaging_channel: `Disconnect a messaging channel from the current session.
 Messages will no longer be forwarded between the chat app and this session.`,
+
+  shared_terminal: `Interact with the session's shared side-panel PTY terminal.
+
+This is the same terminal the user can open from the chat header. It supports interactive/TUI programs because input is written to a real PTY and output is buffered from that PTY.
+By default, new terminal sessions start in the current Workspace directory. Pass \`cwd\` only when you intentionally need another directory.
+
+Commands:
+- \`ensure\`: start or reuse the shared terminal
+- \`write\`: send raw text/control bytes; include \`\\n\` to submit a command or keystroke sequence
+- \`read\`: read buffered output; pass \`fromSeq\` from a previous response for incremental reads
+- \`interrupt\`: send Ctrl-C
+- \`kill\`: terminate the shared terminal session
+
+For command-style use, first call \`read\` to get \`nextSeq\`, then call \`write\` with \`fromSeq\` set to that value and a small \`waitMs\`. For TUI use, alternate \`write\` and \`read\` calls while preserving \`nextSeq\`.`,
 } as const;
 
 // ============================================================
@@ -558,6 +584,8 @@ export const SESSION_TOOL_DEFS: SessionToolDef[] = [
   // Messaging gateway tools
   { name: 'list_messaging_channels', description: TOOL_DESCRIPTIONS.list_messaging_channels, inputSchema: ListMessagingChannelsSchema, executionMode: 'registry', safeMode: 'allow', readOnly: true, handler: handleListMessagingChannels },
   { name: 'unbind_messaging_channel', description: TOOL_DESCRIPTIONS.unbind_messaging_channel, inputSchema: UnbindMessagingChannelSchema, executionMode: 'registry', safeMode: 'block', handler: handleUnbindMessagingChannel },
+  // Shared PTY terminal
+  { name: 'shared_terminal', description: TOOL_DESCRIPTIONS.shared_terminal, inputSchema: SharedTerminalSchema, executionMode: 'registry', safeMode: 'allow', handler: handleSharedTerminal },
 ];
 
 export interface SessionToolFilterOptions {

@@ -1,7 +1,7 @@
 /**
  * Session Self-Management Bindings
  *
- * Attaches 6 session management properties to a SessionToolContext using
+ * Attaches session callback-backed properties to a SessionToolContext using
  * Object.defineProperty with non-memoized lazy getters. Each access resolves
  * the callback from the session-scoped tool callback registry at call time,
  * so late merges and callback replacements are immediately visible without
@@ -24,8 +24,8 @@ import { getSessionScopedToolCallbacks } from './session-scoped-tool-callback-re
 /**
  * Attach session self-management bindings to a SessionToolContext.
  *
- * Defines lazy getters for: setSessionLabels, setSessionStatus,
- * getSessionInfo, listSessions, resolveLabels, resolveStatus.
+ * Defines lazy getters for session self-management, inter-session messaging,
+ * shared terminal access, source activation, and messaging gateway bindings.
  *
  * @param context - The SessionToolContext to augment (mutated in place)
  * @param sessionId - The session ID for registry lookup and getSessionInfo defaulting
@@ -80,6 +80,14 @@ export function attachSessionSelfManagementBindings(
   Object.defineProperty(context, 'sendAgentMessage', {
     get() {
       return getSessionScopedToolCallbacks(sessionId)?.sendAgentMessageFn;
+    },
+    configurable: true,
+    enumerable: true,
+  });
+
+  Object.defineProperty(context, 'sharedTerminal', {
+    get() {
+      return getSessionScopedToolCallbacks(sessionId)?.sharedTerminalFns;
     },
     configurable: true,
     enumerable: true,

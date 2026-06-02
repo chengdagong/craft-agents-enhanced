@@ -168,6 +168,56 @@ export interface TransportConnectionState {
   updatedAt: number
 }
 
+export type TerminalSessionStatus = 'running' | 'exited'
+export type TerminalWriteSource = 'user' | 'agent'
+
+export interface TerminalOutputChunk {
+  seq: number
+  data: string
+  timestamp: number
+}
+
+export interface TerminalSessionSnapshot {
+  sessionId: string
+  cwd: string
+  shell: string
+  shellLabel: string
+  pid: number
+  cols: number
+  rows: number
+  status: TerminalSessionStatus
+  startedAt: number
+  exitedAt?: number
+  exitCode?: number
+  signal?: number
+  nextSeq: number
+  recentOutput: string
+  screenText: string
+}
+
+export interface TerminalReadResult {
+  sessionId: string
+  chunks: TerminalOutputChunk[]
+  nextSeq: number
+  status: TerminalSessionStatus
+  screenText: string
+}
+
+export interface TerminalDataEvent {
+  sessionId: string
+  seq: number
+  data: string
+  timestamp: number
+}
+
+export interface TerminalExitEvent {
+  sessionId: string
+  status: 'exited'
+  exitCode?: number
+  signal?: number
+  exitedAt: number
+}
+
 // =============================================================================
 // ElectronAPI — type-safe IPC API exposed to renderer
 // =============================================================================
@@ -339,6 +389,18 @@ export interface ElectronAPI {
   getTransportConnectionState(): Promise<TransportConnectionState>
   onTransportConnectionStateChanged(callback: (state: TransportConnectionState) => void): () => void
   reconnectTransport(): Promise<void>
+
+  // Shared local PTY terminal (preload-local, direct Electron IPC)
+  terminal: {
+    attach(input: { sessionId: string; cwd?: string; cols?: number; rows?: number }): Promise<TerminalSessionSnapshot>
+    detach(sessionId: string): Promise<void>
+    write(sessionId: string, data: string, source?: TerminalWriteSource): Promise<void>
+    resize(sessionId: string, cols: number, rows: number): Promise<TerminalSessionSnapshot>
+    read(sessionId: string, fromSeq?: number): Promise<TerminalReadResult>
+    kill(sessionId: string): Promise<void>
+    onData(callback: (event: TerminalDataEvent) => void): () => void
+    onExit(callback: (event: TerminalExitEvent) => void): () => void
+  }
 
   /** Fired after a WebSocket reconnect. isStale=true means buffer was evicted — full refresh needed. */
   onReconnected(callback: (isStale: boolean) => void): () => void

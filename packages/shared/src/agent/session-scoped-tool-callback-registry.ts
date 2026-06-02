@@ -13,7 +13,7 @@
 import type { LLMQueryRequest, LLMQueryResult } from './llm-tool.ts';
 import type { SpawnSessionFn } from './spawn-session-tool.ts';
 import type { BrowserPaneFns } from './browser-tools.ts';
-import type { AuthRequest } from '@craft-agent/session-tools-core';
+import type { AuthRequest, SharedTerminalFns } from '@craft-agent/session-tools-core';
 import { debug } from '../utils/debug.ts';
 
 /**
@@ -50,6 +50,13 @@ export interface SessionScopedToolCallbacks {
    * with the session's bound browser instance.
    */
   browserPaneFns?: BrowserPaneFns;
+
+  /**
+   * Shared side-panel PTY terminal functions.
+   * Set by the Electron session manager so session tools can write/read the same
+   * terminal the user sees in the chat UI.
+   */
+  sharedTerminalFns?: SharedTerminalFns;
 
   /** Set labels on a session (defaults to current). */
   setSessionLabelsFn?: (sessionId: string | undefined, labels: string[]) => void | Promise<void>;

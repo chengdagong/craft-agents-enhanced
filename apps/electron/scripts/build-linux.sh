@@ -74,6 +74,7 @@ fi
 echo "Cleaning previous builds..."
 rm -rf "$ELECTRON_DIR/vendor"
 rm -rf "$ELECTRON_DIR/node_modules/@anthropic-ai"
+rm -rf "$ELECTRON_DIR/node_modules/node-pty"
 rm -rf "$ELECTRON_DIR/packages"
 rm -rf "$ELECTRON_DIR/release"
 
@@ -166,6 +167,21 @@ echo "Copying @vscode/ripgrep..."
 mkdir -p "$ELECTRON_DIR/node_modules/@vscode"
 rm -rf "$ELECTRON_DIR/node_modules/@vscode/ripgrep"
 cp -r "$RG_SOURCE" "$ELECTRON_DIR/node_modules/@vscode/"
+
+# 5a. Copy node-pty native module for the shared terminal.
+PTY_SOURCE="$ROOT_DIR/node_modules/node-pty"
+require_path "$PTY_SOURCE/package.json" "node-pty" "Run 'bun install' and 'bun pm trust node-pty' first."
+echo "Copying node-pty..."
+mkdir -p "$ELECTRON_DIR/node_modules"
+rm -rf "$ELECTRON_DIR/node_modules/node-pty"
+cp -r "$PTY_SOURCE" "$ELECTRON_DIR/node_modules/"
+find "$ELECTRON_DIR/node_modules/node-pty" -type f -name spawn-helper -exec chmod +x {} +
+if [ ! -f "$ELECTRON_DIR/node_modules/node-pty/prebuilds/linux-${ARCH}/pty.node" ] && \
+   [ ! -f "$ELECTRON_DIR/node_modules/node-pty/build/Release/pty.node" ]; then
+    echo "ERROR: node-pty native binary not found for linux-${ARCH}"
+    echo "Run 'bun pm trust node-pty' so its install script can fetch or build the native module."
+    exit 1
+fi
 
 # 6. Copy network interceptor sources (for Pi subprocess; Claude no longer
 #    uses --preload — see Phase 2 in plans/sdk-uplift-plan.md).

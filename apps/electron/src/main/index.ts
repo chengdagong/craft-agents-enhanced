@@ -84,6 +84,7 @@ import { setSearchPlatform, setImageProcessor } from '@craft-agent/server-core/s
 import { createApplicationMenu } from './menu'
 import { WindowManager } from './window-manager'
 import { loadWindowState, saveWindowState } from './window-state'
+import { getElectronDevelopmentRoot, getElectronRuntimeAppRoot } from './runtime-paths'
 import { getWorkspaces, getWorkspaceByNameOrId, loadStoredConfig, addWorkspace, saveConfig } from '@craft-agent/shared/config'
 import { getDefaultWorkspacesDir } from '@craft-agent/shared/workspaces'
 import { initializeDocs } from '@craft-agent/shared/docs'
@@ -95,6 +96,7 @@ import { initializeBackendHostRuntime } from '@craft-agent/shared/agent/backend'
 import { setPowerShellValidatorRoot } from '@craft-agent/shared/agent'
 import { handleDeepLink } from './deep-link'
 import { BrowserPaneManager } from './browser-pane-manager'
+import { TerminalManager, registerTerminalIpc } from './terminal-manager'
 import { OAuthFlowStore } from '@craft-agent/shared/auth'
 import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-protocol'
 import log, { isDebugMode, mainLog, getLogFilePath, getMessagingGatewayLogFilePath, messagingGatewayLog } from './logger'
@@ -120,6 +122,8 @@ if (isDebugMode) {
 // These are available to all agent Bash sessions via CRAFT_UV, CRAFT_SCRIPTS env vars
 // and PATH prepend. uv auto-downloads Python 3.12 on first use (~5s, then cached).
 {
+  const runtimeAppRoot = getElectronRuntimeAppRoot(app)
+  const developmentRoot = getElectronDevelopmentRoot(app)
   // In packaged app: resources are at process.resourcesPath/app/resources/
   // In dev: resources are at __dirname/../resources/ (sibling of dist/)
   const resourcesBase = app.isPackaged
@@ -137,7 +141,7 @@ if (isDebugMode) {
   // Runtime resolver hints for shared session tools
   process.env.CRAFT_IS_PACKAGED = app.isPackaged ? '1' : '0'
   process.env.CRAFT_RESOURCES_BASE = resourcesBase
-  process.env.CRAFT_APP_ROOT = app.isPackaged ? app.getAppPath() : process.cwd()
+  process.env.CRAFT_APP_ROOT = runtimeAppRoot
 
   process.env.CRAFT_UV = bundledUvExists ? uvBinary : (fallbackUv ?? uvBinary)
 
@@ -149,14 +153,14 @@ if (isDebugMode) {
 
   process.env.CRAFT_SCRIPTS = scriptsDir
   process.env.CRAFT_COMMANDS_ENTRY = app.isPackaged
-    ? join(app.getAppPath(), 'packages', 'craft-agents-commands', 'src', 'main.ts')
-    : join(process.cwd(), 'packages', 'craft-agents-commands', 'src', 'main.ts')
+    ? join(runtimeAppRoot, 'packages', 'craft-agents-commands', 'src', 'main.ts')
+    : join(developmentRoot, 'packages', 'craft-agents-commands', 'src', 'main.ts')
   process.env.CRAFT_CLI_ENTRY = app.isPackaged
-    ? join(app.getAppPath(), 'packages', 'craft-cli', 'src', 'cli.ts')
-    : join(process.cwd(), 'packages', 'craft-cli', 'src', 'cli.ts')
+    ? join(runtimeAppRoot, 'packages', 'craft-cli', 'src', 'cli.ts')
+    : join(developmentRoot, 'packages', 'craft-cli', 'src', 'cli.ts')
   process.env.CRAFT_COMMANDS_DOC_PATH = app.isPackaged
     ? join(resourcesBase, 'resources', 'docs', 'craft-cli.md')
-    : join(process.cwd(), 'apps', 'electron', 'resources', 'docs', 'craft-cli.md')
+    : join(developmentRoot, 'apps', 'electron', 'resources', 'docs', 'craft-cli.md')
   process.env.CRAFT_CLI_DOC_PATH = process.env.CRAFT_COMMANDS_DOC_PATH
   process.env.CRAFT_AGENT_VERSION = app.getVersion()
   // Prepend both generic wrappers dir and platform uv dir:
@@ -189,6 +193,7 @@ const DEEPLINK_SCHEME = process.env.CRAFT_DEEPLINK_SCHEME || 'craftagents'
 let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
 let browserPaneManager: BrowserPaneManager | null = null
+let terminalManager: TerminalManager | null = null
 let oauthFlowStore: OAuthFlowStore | null = null
 let moduleSink: EventSink | null = null
 let moduleClientResolver: ((webContentsId: number) => string | undefined) | null = null
@@ -369,7 +374,7 @@ app.whenReady().then(async () => {
   // Initialize backend runtime bootstrapping (Codex vendor root, Claude SDK runtime paths).
   initializeBackendHostRuntime({
     hostRuntime: {
-      appRootPath: app.isPackaged ? app.getAppPath() : process.cwd(),
+      appRootPath: getElectronRuntimeAppRoot(app),
       resourcesPath: process.resourcesPath,
       isPackaged: app.isPackaged,
     },
@@ -456,6 +461,9 @@ app.whenReady().then(async () => {
     browserPaneManager.setWindowManager(windowManager)
     browserPaneManager.registerToolbarIpc()
     browserPaneManager.registerCapabilityIpc()
+
+    terminalManager = new TerminalManager()
+    registerTerminalIpc(terminalManager)
 
     // Build real PlatformServices from Electron APIs
     const platform: PlatformServices = createElectronPlatform({
@@ -634,6 +642,7 @@ app.whenReady().then(async () => {
         createSessionManager: () => {
           const sm = new SessionManager()
           sm.setBrowserPaneManager(browserPaneManager!)
+          sm.setSharedTerminalManager(terminalManager!)
           return sm
         },
         bindRpcServer: (sm, server) => sm.setRpcServer(server),
@@ -661,7 +670,7 @@ app.whenReady().then(async () => {
             whatsapp: {
               workerEntry: app.isPackaged
                 ? join(process.resourcesPath, 'messaging-whatsapp-worker', 'worker.cjs')
-                : join(process.cwd(), 'packages', 'messaging-whatsapp-worker', 'dist', 'worker.cjs'),
+                : join(getElectronDevelopmentRoot(app), 'packages', 'messaging-whatsapp-worker', 'dist', 'worker.cjs'),
               pairingMode: 'qr',
             },
           })
@@ -1135,6 +1144,7 @@ app.on('before-quit', async (event) => {
 
   // Ensure Cmd+Q/app quit bypasses layered window close interception (Cmd+W behavior).
   windowManager?.setAppQuitting(true)
+  terminalManager?.killAll()
 
   if (windowManager) {
     const windows = windowManager.getWindowStates()

@@ -63,6 +63,10 @@ export type { RenderTemplateArgs } from './render-template.ts';
 export { handleSendDeveloperFeedback } from './send-developer-feedback.ts';
 export type { SendDeveloperFeedbackArgs } from './send-developer-feedback.ts';
 
+// Shared Terminal
+export { handleSharedTerminal } from './shared-terminal.ts';
+export type { SharedTerminalArgs } from './shared-terminal.ts';
+
 // Session Self-Management
 export { handleSetSessionLabels } from './set-session-labels.ts';
 export type { SetSessionLabelsArgs } from './set-session-labels.ts';
