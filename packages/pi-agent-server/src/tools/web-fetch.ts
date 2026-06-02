@@ -383,10 +383,11 @@ export function createWebFetchTool(
       // Use the final URL after redirects for all output messages
       const finalUrl = response.url || url;
 
-      const contentType = (response.headers.get('content-type') || '')
+      const contentTypeHeader = response.headers.get('content-type') || '';
+      const contentType = (contentTypeHeader
         .toLowerCase()
-        .split(';')[0]
-        .trim();
+        .split(';')[0] ?? ''
+      ).trim();
 
       // Binary content types — stream with size limit
       if (contentType === 'application/pdf') {
