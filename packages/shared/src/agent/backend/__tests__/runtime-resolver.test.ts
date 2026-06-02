@@ -57,6 +57,23 @@ describe('resolveServerPath fallback', () => {
     const paths = resolveBackendRuntimePaths(hostRuntime);
     expect(paths.piServerPath).toBe(join(primaryDir, 'index.js'));
   });
+
+  it('finds dev server dist when non-packaged app root is apps/electron', () => {
+    const appRoot = join(tmpBase, 'monorepo', 'apps', 'electron');
+    const serverDir = join(tmpBase, 'monorepo', 'packages', 'pi-agent-server', 'dist');
+    mkdirSync(appRoot, { recursive: true });
+    mkdirSync(serverDir, { recursive: true });
+    writeFileSync(join(serverDir, 'index.js'), '// dev server');
+
+    const hostRuntime: BackendHostRuntimeContext = {
+      appRootPath: appRoot,
+      resourcesPath: appRoot,
+      isPackaged: false,
+    };
+
+    const paths = resolveBackendRuntimePaths(hostRuntime);
+    expect(paths.piServerPath).toBe(join(serverDir, 'index.js'));
+  });
 });
 
 describe('resolveRipgrepPath', () => {
