@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Terminal as TerminalIcon, X, Trash2, OctagonX, Power } from 'lucide-react'
+import { Terminal as TerminalIcon, X } from 'lucide-react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -241,24 +241,6 @@ export function AgentTerminalPanel({
     }
   }, [sessionId])
 
-  const handleInterrupt = React.useCallback(() => {
-    window.electronAPI.terminal.write(sessionId, '\x03', 'user').catch((err) => {
-      setError(err instanceof Error ? err.message : String(err))
-    })
-    terminalRef.current?.focus()
-  }, [sessionId])
-
-  const handleClear = React.useCallback(() => {
-    terminalRef.current?.clear()
-    terminalRef.current?.focus()
-  }, [])
-
-  const handleKill = React.useCallback(() => {
-    window.electronAPI.terminal.kill(sessionId).catch((err) => {
-      setError(err instanceof Error ? err.message : String(err))
-    })
-  }, [sessionId])
-
   const handleResizePointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (compactMode || !onWidthChange) return
     event.preventDefault()
@@ -395,33 +377,6 @@ export function AgentTerminalPanel({
           <X className="h-4 w-4" />
         </button>
       </header>
-
-      <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto bg-foreground-2 px-2 py-2 shadow-bottom-border-thin">
-        <button
-          type="button"
-          onClick={handleInterrupt}
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] bg-background px-2 text-xs text-foreground/70 shadow-minimal transition-colors hover:bg-foreground-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <OctagonX className="h-3.5 w-3.5" />
-          Ctrl-C
-        </button>
-        <button
-          type="button"
-          onClick={handleClear}
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] bg-background px-2 text-xs text-foreground/70 shadow-minimal transition-colors hover:bg-foreground-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Clear
-        </button>
-        <button
-          type="button"
-          onClick={handleKill}
-          className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-[6px] bg-destructive/10 px-2 text-xs text-destructive shadow-thin transition-colors hover:bg-destructive/15 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <Power className="h-3.5 w-3.5" />
-          Kill
-        </button>
-      </div>
 
       <div className="relative min-h-0 flex-1 overflow-hidden bg-background">
         <div
