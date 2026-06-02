@@ -585,7 +585,7 @@ export const SESSION_TOOL_DEFS: SessionToolDef[] = [
   { name: 'list_messaging_channels', description: TOOL_DESCRIPTIONS.list_messaging_channels, inputSchema: ListMessagingChannelsSchema, executionMode: 'registry', safeMode: 'allow', readOnly: true, handler: handleListMessagingChannels },
   { name: 'unbind_messaging_channel', description: TOOL_DESCRIPTIONS.unbind_messaging_channel, inputSchema: UnbindMessagingChannelSchema, executionMode: 'registry', safeMode: 'block', handler: handleUnbindMessagingChannel },
   // Shared PTY terminal
-  { name: 'shared_terminal', description: TOOL_DESCRIPTIONS.shared_terminal, inputSchema: SharedTerminalSchema, executionMode: 'registry', safeMode: 'block', handler: handleSharedTerminal },
+  { name: 'shared_terminal', description: TOOL_DESCRIPTIONS.shared_terminal, inputSchema: SharedTerminalSchema, executionMode: 'registry', safeMode: 'allow', handler: handleSharedTerminal },
 ];
 
 export interface SessionToolFilterOptions {
