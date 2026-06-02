@@ -72,6 +72,7 @@ Write-Host "Cleaning previous builds..."
 $foldersToClean = @(
     "$ElectronDir\vendor",
     "$ElectronDir\node_modules\@anthropic-ai",
+    "$ElectronDir\node_modules\node-pty",
     "$ElectronDir\packages",
     "$ElectronDir\release"
 )
@@ -224,6 +225,25 @@ New-Item -ItemType Directory -Force -Path "$ElectronDir\node_modules\@vscode" | 
 Remove-Item -Recurse -Force "$ElectronDir\node_modules\@vscode\ripgrep" -ErrorAction SilentlyContinue
 Copy-Item -Recurse -Force $RgSource "$ElectronDir\node_modules\@vscode\"
 
+# 5a. Copy node-pty native module for the shared terminal.
+$PtySource = "$RootDir\node_modules\node-pty"
+if (-not (Test-Path "$PtySource\package.json")) {
+    Write-Host "ERROR: node-pty not found at $PtySource" -ForegroundColor Red
+    Write-Host "Run 'bun install' and 'bun pm trust node-pty'."
+    exit 1
+}
+Write-Host "Copying node-pty..."
+New-Item -ItemType Directory -Force -Path "$ElectronDir\node_modules" | Out-Null
+Remove-Item -Recurse -Force "$ElectronDir\node_modules\node-pty" -ErrorAction SilentlyContinue
+Copy-Item -Recurse -Force $PtySource "$ElectronDir\node_modules\"
+
+if (-not (Test-Path "$ElectronDir\node_modules\node-pty\prebuilds\win32-x64\pty.node") -and
+    -not (Test-Path "$ElectronDir\node_modules\node-pty\build\Release\pty.node")) {
+    Write-Host "ERROR: node-pty native binary not found for win32-x64" -ForegroundColor Red
+    Write-Host "Run 'bun pm trust node-pty' so its install script can fetch or build the native module."
+    exit 1
+}
+
 # 6. Copy network interceptor sources (for Pi subprocess; Claude no longer
 #    uses --preload — see Phase 2 in plans/sdk-uplift-plan.md).
 $InterceptorSource = "$RootDir\packages\shared\src\unified-network-interceptor.ts"
@@ -252,7 +272,8 @@ $MainArgs = @(
     "--platform=node",
     "--format=cjs",
     "--outfile=apps/electron/dist/main.cjs",
-    "--external:electron"
+    "--external:electron",
+    "--external:node-pty"
 )
 # Add OAuth defines if env vars are set
 if ($env:GOOGLE_OAUTH_CLIENT_ID) {

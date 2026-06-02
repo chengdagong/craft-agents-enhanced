@@ -11,6 +11,7 @@ import {
   copyFileSync,
   cpSync,
   lstatSync,
+  chmodSync,
   readdirSync,
 } from 'fs';
 import { join, dirname } from 'path';
@@ -279,6 +280,7 @@ export function cleanBuildArtifacts(config: BuildConfig): void {
   const foldersToClean = [
     join(electronDir, 'vendor'),
     join(electronDir, 'node_modules', '@anthropic-ai'),
+    join(electronDir, 'node_modules', 'node-pty'),
     join(electronDir, 'packages'),
     join(electronDir, 'release'),
   ];
@@ -425,6 +427,57 @@ export function copyRipgrep(config: BuildConfig): void {
     rmSync(rgDest, { recursive: true, force: true });
   }
   cpSync(rgSource, rgDest, { recursive: true, dereference: true });
+}
+
+function chmodSpawnHelpers(root: string): void {
+  if (!existsSync(root)) return;
+
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const entryPath = join(root, entry.name);
+    if (entry.isDirectory()) {
+      chmodSpawnHelpers(entryPath);
+    } else if (entry.isFile() && entry.name === 'spawn-helper') {
+      const mode = lstatSync(entryPath).mode;
+      if ((mode & 0o111) === 0) {
+        chmodSync(entryPath, (mode & 0o777) | 0o111);
+      }
+    }
+  }
+}
+
+/**
+ * Copy node-pty into the staged Electron node_modules. The main process keeps
+ * node-pty external so its native module and helper binaries can resolve at runtime.
+ */
+export function copyNodePty(config: BuildConfig): void {
+  const { rootDir, electronDir, platform, arch } = config;
+  const ptySource = join(rootDir, 'node_modules', 'node-pty');
+  const ptyDest = join(electronDir, 'node_modules', 'node-pty');
+
+  if (!existsSync(join(ptySource, 'package.json'))) {
+    throw new Error(`node-pty not found at ${ptySource}. Run 'bun install' and 'bun pm trust node-pty'.`);
+  }
+
+  console.log('Copying node-pty...');
+  mkdirSync(join(electronDir, 'node_modules'), { recursive: true });
+  if (existsSync(ptyDest)) {
+    rmSync(ptyDest, { recursive: true, force: true });
+  }
+  cpSync(ptySource, ptyDest, { recursive: true, dereference: true });
+
+  if (platform !== 'win32') {
+    chmodSpawnHelpers(ptyDest);
+  }
+
+  const platformPrebuild = join(ptyDest, 'prebuilds', `${platform}-${arch}`, 'pty.node');
+  const buildRelease = join(ptyDest, 'build', 'Release', 'pty.node');
+  const buildDebug = join(ptyDest, 'build', 'Debug', 'pty.node');
+  if (!existsSync(platformPrebuild) && !existsSync(buildRelease) && !existsSync(buildDebug)) {
+    throw new Error(
+      `node-pty native binary not found for ${platform}-${arch}. ` +
+      `Run 'bun pm trust node-pty' so its install script can fetch or build the native module.`,
+    );
+  }
 }
 
 /**

@@ -491,6 +491,26 @@ html[data-font="inter"] {
     -moz-osx-font-smoothing: grayscale;
   }
 
+  .agent-terminal-xterm,
+  .agent-terminal-xterm .xterm,
+  .agent-terminal-xterm .xterm-viewport,
+  .agent-terminal-xterm .xterm-screen,
+  .agent-terminal-xterm .xterm-rows,
+  .agent-terminal-xterm .xterm-rows span,
+  .agent-terminal-xterm .xterm-helper-textarea {
+    font-family: "SF Mono", Menlo, Monaco, "Cascadia Mono", "JetBrains Mono", "Fira Code", monospace !important;
+    font-variant-ligatures: none !important;
+    font-feature-settings: "liga" 0, "calt" 0 !important;
+    letter-spacing: normal !important;
+  }
+
+  .agent-terminal-xterm,
+  .agent-terminal-xterm .xterm,
+  .agent-terminal-xterm .xterm-viewport,
+  .agent-terminal-xterm .xterm-screen {
+    background-color: var(--background) !important;
+  }
+
   /* Scrollbar styling */
   ::-webkit-scrollbar {
     width: 8px;

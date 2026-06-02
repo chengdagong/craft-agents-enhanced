@@ -17,7 +17,7 @@
  */
 
 import '@sentry/electron/preload'
-import { contextBridge, ipcRenderer, shell, webUtils } from 'electron'
+import { contextBridge, ipcRenderer, shell, webUtils, type IpcRendererEvent } from 'electron'
 import { WsRpcClient, type TransportConnectionState } from '../transport/client'
 import { RoutedClient } from '../transport/routed-client'
 import { buildClientApi } from '../transport/build-api'
@@ -36,7 +36,7 @@ import {
 import type { ConfirmDialogSpec, FileDialogSpec, BrowserCapabilityRequest } from '@craft-agent/server-core/transport'
 import type { RpcClient } from '@craft-agent/server-core/transport'
 import type { RemoteServerConfig } from '@craft-agent/core/types'
-import type { ElectronAPI } from '../shared/types'
+import type { ElectronAPI, TerminalDataEvent, TerminalExitEvent, TerminalWriteSource } from '../shared/types'
 
 // ---------------------------------------------------------------------------
 // Client interface — common surface for both RoutedClient and WsRpcClient
@@ -262,6 +262,28 @@ client.onConnectionStateChanged((state) => {
 }
 ;(api as any).reconnectTransport = async () => {
   client.reconnectNow()
+}
+
+;(api as ElectronAPI).terminal = {
+  attach: (input) => ipcRenderer.invoke('terminal:attach', input),
+  detach: (sessionId: string) => ipcRenderer.invoke('terminal:detach', sessionId),
+  write: (sessionId: string, data: string, source?: TerminalWriteSource) =>
+    ipcRenderer.invoke('terminal:write', sessionId, data, source),
+  resize: (sessionId: string, cols: number, rows: number) =>
+    ipcRenderer.invoke('terminal:resize', sessionId, cols, rows),
+  read: (sessionId: string, fromSeq?: number) =>
+    ipcRenderer.invoke('terminal:read', sessionId, fromSeq),
+  kill: (sessionId: string) => ipcRenderer.invoke('terminal:kill', sessionId),
+  onData: (callback: (event: TerminalDataEvent) => void) => {
+    const handler = (_event: IpcRendererEvent, payload: TerminalDataEvent) => callback(payload)
+    ipcRenderer.on('terminal:data', handler)
+    return () => ipcRenderer.removeListener('terminal:data', handler)
+  },
+  onExit: (callback: (event: TerminalExitEvent) => void) => {
+    const handler = (_event: IpcRendererEvent, payload: TerminalExitEvent) => callback(payload)
+    ipcRenderer.on('terminal:exit', handler)
+    return () => ipcRenderer.removeListener('terminal:exit', handler)
+  },
 }
 
 // ── performOAuth ─────────────────────────────────────────────────────────

@@ -132,6 +132,10 @@ export type {
   ListSessionsResult,
   ResolvedLabelsResult,
   ResolvedStatusResult,
+  SharedTerminalOutputChunk,
+  SharedTerminalSessionSnapshot,
+  SharedTerminalReadResult,
+  SharedTerminalFns,
 } from './context.ts';
 
 export { createNodeFileSystem } from './context.ts';
@@ -165,6 +169,8 @@ export {
   handleRenderTemplate,
   // Send Developer Feedback
   handleSendDeveloperFeedback,
+  // Shared Terminal
+  handleSharedTerminal,
 } from './handlers/index.ts';
 
 export type {
@@ -183,6 +189,7 @@ export type {
   ScriptSandboxArgs,
   RenderTemplateArgs,
   SendDeveloperFeedbackArgs,
+  SharedTerminalArgs,
 } from './handlers/index.ts';
 
 // Tool definitions — single source of truth
@@ -200,6 +207,7 @@ export {
   TransformDataSchema,
   ScriptSandboxSchema,
   RenderTemplateSchema,
+  SharedTerminalSchema,
   // Browser tool schema
   BrowserToolSchema,
   // Developer feedback schema

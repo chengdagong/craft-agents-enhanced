@@ -138,6 +138,49 @@ export interface ValidatorInterface {
 }
 
 // ============================================================
+// Shared Terminal Interface
+// ============================================================
+
+export interface SharedTerminalOutputChunk {
+  seq: number;
+  data: string;
+  timestamp: number;
+}
+
+export interface SharedTerminalSessionSnapshot {
+  sessionId: string;
+  cwd: string;
+  shell: string;
+  shellLabel: string;
+  pid: number;
+  cols: number;
+  rows: number;
+  status: 'running' | 'exited';
+  startedAt: number;
+  exitedAt?: number;
+  exitCode?: number;
+  signal?: number;
+  nextSeq: number;
+  recentOutput: string;
+  screenText: string;
+}
+
+export interface SharedTerminalReadResult {
+  sessionId: string;
+  chunks: SharedTerminalOutputChunk[];
+  nextSeq: number;
+  status: 'running' | 'exited';
+  screenText: string;
+}
+
+export interface SharedTerminalFns {
+  ensure(options?: { cwd?: string; cols?: number; rows?: number }): Promise<SharedTerminalSessionSnapshot>;
+  write(data: string, options?: { cwd?: string; cols?: number; rows?: number }): Promise<SharedTerminalSessionSnapshot>;
+  read(fromSeq?: number): Promise<SharedTerminalReadResult>;
+  kill(): Promise<void>;
+}
+
+// ============================================================
 // Session Tool Context
 // ============================================================
 
@@ -334,6 +377,9 @@ export interface SessionToolContext {
 
   /** Send a message to another session. Injected by backend (SessionManager). */
   sendAgentMessage?(sessionId: string, message: string, attachments?: Array<{ path: string; name?: string }>): Promise<void>;
+
+  /** Interact with the shared side-panel PTY terminal for this session. */
+  sharedTerminal?: SharedTerminalFns;
 
   /**
    * Activate a source in the running session: add to enabledSourceSlugs,

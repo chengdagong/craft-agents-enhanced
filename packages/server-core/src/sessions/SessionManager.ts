@@ -122,6 +122,39 @@ interface SessionRuntimeHooks {
   onSessionStopped: () => void
 }
 
+interface SharedTerminalSessionSnapshot {
+  sessionId: string
+  cwd: string
+  shell: string
+  shellLabel: string
+  pid: number
+  cols: number
+  rows: number
+  status: 'running' | 'exited'
+  startedAt: number
+  exitedAt?: number
+  exitCode?: number
+  signal?: number
+  nextSeq: number
+  recentOutput: string
+  screenText: string
+}
+
+interface SharedTerminalReadResult {
+  sessionId: string
+  chunks: Array<{ seq: number; data: string; timestamp: number }>
+  nextSeq: number
+  status: 'running' | 'exited'
+  screenText: string
+}
+
+interface ISharedTerminalManager {
+  ensure(input: { sessionId: string; cwd?: string; cols?: number; rows?: number }): SharedTerminalSessionSnapshot
+  write(sessionId: string, data: string, source?: 'user' | 'agent'): void
+  read(sessionId: string, fromSeq?: number): Promise<SharedTerminalReadResult>
+  kill(sessionId: string): void
+}
+
 const defaultSessionRuntimeHooks: SessionRuntimeHooks = {
   updateBadgeCount: () => {},
   onSessionStarted: () => {},
@@ -1194,6 +1227,7 @@ export class SessionManager implements ISessionManager {
   }
 
   private browserPaneManager: IBrowserPaneManager | null = null
+  private sharedTerminalManager: ISharedTerminalManager | null = null
   private rpcServer: RpcServer | null = null
   private remoteBpms = new Map<string, RemoteBrowserPaneManager>()
   /** Pinned desktop client per session for `client:browser:invoke` routing. */
@@ -1207,6 +1241,38 @@ export class SessionManager implements ISessionManager {
   setBrowserPaneManager(bpm: IBrowserPaneManager): void {
     this.browserPaneManager = bpm
     bpm.setSessionPathResolver((sessionId) => this.getSessionPath(sessionId))
+  }
+
+  setSharedTerminalManager(manager: ISharedTerminalManager): void {
+    this.sharedTerminalManager = manager
+  }
+
+  private getSharedTerminalFns(managed: ManagedSession) {
+    const manager = this.sharedTerminalManager
+    if (!manager) return undefined
+
+    const resolveCwd = (cwd?: string) => cwd ?? managed.workingDirectory
+
+    return {
+      ensure: async (options?: { cwd?: string; cols?: number; rows?: number }) => manager.ensure({
+        sessionId: managed.id,
+        cwd: resolveCwd(options?.cwd),
+        cols: options?.cols,
+        rows: options?.rows,
+      }),
+      write: async (data: string, options?: { cwd?: string; cols?: number; rows?: number }) => {
+        const snapshot = manager.ensure({
+          sessionId: managed.id,
+          cwd: resolveCwd(options?.cwd),
+          cols: options?.cols,
+          rows: options?.rows,
+        })
+        manager.write(managed.id, data, 'agent')
+        return snapshot
+      },
+      read: async (fromSeq?: number) => manager.read(managed.id, fromSeq),
+      kill: async () => manager.kill(managed.id),
+    }
   }
 
   /**
@@ -4059,6 +4125,7 @@ export class SessionManager implements ISessionManager {
 
       // Wire up session self-management tools (set_session_labels, set_session_status, etc.)
       mergeSessionScopedToolCallbacks(managed.id, {
+        sharedTerminalFns: this.getSharedTerminalFns(managed),
         setSessionLabelsFn: async (sessionId: string | undefined, labels: string[]) => {
           await this.setSessionLabels(sessionId ?? managed.id, labels)
         },
