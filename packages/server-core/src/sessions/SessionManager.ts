@@ -1251,7 +1251,7 @@ export class SessionManager implements ISessionManager {
     const manager = this.sharedTerminalManager
     if (!manager) return undefined
 
-    const resolveCwd = (cwd?: string) => cwd ?? managed.workingDirectory
+    const resolveCwd = (cwd?: string) => cwd ?? managed.workspace.rootPath
 
     return {
       ensure: async (options?: { cwd?: string; cols?: number; rows?: number }) => manager.ensure({

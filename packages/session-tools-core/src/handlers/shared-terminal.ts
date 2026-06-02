@@ -41,7 +41,7 @@ export async function handleSharedTerminal(
   const waitMs = normalizeWaitMs(args.waitMs);
   const fromSeq = normalizeSeq(args.fromSeq);
   const options = {
-    cwd: args.cwd ?? ctx.workingDirectory,
+    cwd: args.cwd ?? ctx.workspacePath,
     cols: args.cols,
     rows: args.rows,
   };

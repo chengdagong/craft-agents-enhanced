@@ -499,6 +499,7 @@ Messages will no longer be forwarded between the chat app and this session.`,
   shared_terminal: `Interact with the session's shared side-panel PTY terminal.
 
 This is the same terminal the user can open from the chat header. It supports interactive/TUI programs because input is written to a real PTY and output is buffered from that PTY.
+By default, new terminal sessions start in the current Workspace directory. Pass \`cwd\` only when you intentionally need another directory.
 
 Commands:
 - \`ensure\`: start or reuse the shared terminal

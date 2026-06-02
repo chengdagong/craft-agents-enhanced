@@ -327,6 +327,7 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
     () => workspaces.find((w) => w.id === activeWorkspaceId) || null,
     [workspaces, activeWorkspaceId]
   )
+  const terminalCwd = activeWorkspace?.rootPath || workingDirectory
   const handleWorkingDirectoryChange = React.useCallback(async (path: string) => {
     if (!session) return
     await window.electronAPI.sessionCommand(session.id, { type: 'updateWorkingDirectory', dir: path })
@@ -760,7 +761,7 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
             {terminalOpen && (
               <AgentTerminalPanel
                 sessionId={sessionId}
-                cwd={sessionMeta.workingDirectory}
+                cwd={terminalCwd || sessionMeta.workingDirectory}
                 compactMode={!!isCompactMode}
                 width={terminalWidth}
                 onWidthChange={setTerminalWidth}
@@ -852,7 +853,7 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
         {terminalOpen && (
           <AgentTerminalPanel
             sessionId={sessionId}
-            cwd={workingDirectory}
+            cwd={terminalCwd}
             compactMode={!!isCompactMode}
             width={terminalWidth}
             onWidthChange={setTerminalWidth}
