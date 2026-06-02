@@ -11,7 +11,6 @@ import {
   PANEL_SASH_HALF_HIT_WIDTH,
   PANEL_SASH_HIT_WIDTH,
   PANEL_SASH_LINE_WIDTH,
-  RADIUS_INNER,
 } from './panel-constants'
 import type { TerminalSessionSnapshot } from '../../../shared/types'
 
@@ -326,8 +325,6 @@ export function AgentTerminalPanel({
       style={compactMode ? undefined : {
         width: panelWidth,
         marginLeft: PANEL_GAP,
-        borderTopLeftRadius: RADIUS_INNER,
-        borderBottomLeftRadius: RADIUS_INNER,
       }}
       aria-label="Shared terminal"
     >
